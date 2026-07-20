@@ -18,6 +18,8 @@ jobs:
           yarn ci
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -32,6 +34,6 @@ jobs:
           git config user.name ${{ secrets.USER_NAME }}
           git config user.email ${{ secrets.USER_EMAIL }}
           git add .
-          git commit -m "Update OUTPUT.md"
+          git commit -m "📈 Update OUTPUT.md"
           git push
           fi
