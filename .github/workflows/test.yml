@@ -29,8 +29,8 @@ jobs:
       - name: Check Status
         run: |
           if [[ "$(git status --porcelain)" != "" ]]; then
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git config user.name ${{ secrets.USER_NAME }}
+          git config user.email ${{ secrets.USER_EMAIL }}
           git add .
           git commit -m "Update OUTPUT.md"
           git push
