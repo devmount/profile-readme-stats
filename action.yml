@@ -1,5 +1,5 @@
 name: 'Profile Readme Stats'
-description: 'Showcase your github stats on your profile README.md'
+description: 'Showcase your GitHub stats on your profile README.md'
 inputs:
   token:
     description: 'Personal access token with `read:user` scope and optional `repo` scope'
@@ -20,5 +20,5 @@ runs:
   using: 'node24'
   main: 'dist/index.js'
 branding:
-  icon: 'align-justify'
-  color: 'blue'
+  icon: 'bar-chart-2'
+  color: 'purple'
