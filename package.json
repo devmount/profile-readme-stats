@@ -1,10 +1,11 @@
 {
     "private": "true",
+    "packageManager": "pnpm@11.15.1",
     "scripts": {
         "build": "ncc build src/main.ts",
         "format": "prettier **/*.{ts,json,yml,md} --check",
         "format:fix": "prettier **/*.{ts,json,yml,md} --write",
-        "ci": "yarn format:fix && yarn build"
+        "ci": "pnpm format:fix && pnpm build"
     },
     "dependencies": {
         "@actions/core": "^1.10.0",
