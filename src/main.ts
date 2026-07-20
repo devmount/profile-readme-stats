@@ -20,7 +20,21 @@ enum TPL_STR {
     STARS = 'STARS',
 }
 
-run().catch(error => core.setFailed(error.message))
+run().catch(error => {
+    core.error(
+        JSON.stringify(
+            {
+                message: error.message,
+                errors: error.errors,
+                query: error.request?.query,
+                variables: error.request?.variables,
+            },
+            null,
+            2
+        )
+    )
+    core.setFailed(error.message)
+})
 
 async function run(): Promise<void> {
     const token = core.getInput('token')

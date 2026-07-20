@@ -7598,7 +7598,16 @@ var TPL_STR;
     TPL_STR["REPOSITORIES_CONTRIBUTED_TO"] = "REPOSITORIES_CONTRIBUTED_TO";
     TPL_STR["STARS"] = "STARS";
 })(TPL_STR || (TPL_STR = {}));
-run().catch(error => core.setFailed(error.message));
+run().catch(error => {
+    var _a, _b;
+    core.error(JSON.stringify({
+        message: error.message,
+        errors: error.errors,
+        query: (_a = error.request) === null || _a === void 0 ? void 0 : _a.query,
+        variables: (_b = error.request) === null || _b === void 0 ? void 0 : _b.variables,
+    }, null, 2));
+    core.setFailed(error.message);
+});
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         const token = core.getInput('token');
