@@ -7637,7 +7637,7 @@ function run() {
     });
 }
 /** number of contribution years bundled into a single contributionsCollection query */
-const CONTRIBUTION_YEARS_CHUNK_SIZE = 5;
+const CONTRIBUTION_YEARS_CHUNK_SIZE = 1;
 /** page size for the top-level `gists` connection */
 const GISTS_PAGE_SIZE = 50;
 /** page size for the top-level `repositories` connection */
