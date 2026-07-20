@@ -8,121 +8,54 @@ This action provides [template strings](#template-strings) that are replaced wit
 
 ## Table of contents
 
-<!-- prettier-ignore-start -->
 - [Table of contents](#table-of-contents)
 - [Action Inputs](#action-inputs)
-  - [`token` _Required_](#token-required)
-  - [`template`](#template)
-  - [`readme`](#readme)
-  - [`includeForks`](#includeforks)
 - [Template Strings](#template-strings)
   - [General](#general)
-    - [`{{ ACCOUNT_AGE }}`](#-account_age-)
-    - [`{{ ISSUES }}`](#-issues-)
-    - [`{{ PULL_REQUESTS }}`](#-pull_requests-)
-    - [`{{ CODE_REVIEWS }}`](#-code_reviews-)
-    - [`{{ COMMITS }}`](#-commits-)
-    - [`{{ GISTS }}`](#-gists-)
-    - [`{{ REPOSITORIES }}`](#-repositories-)
-    - [`{{ REPOSITORIES_CONTRIBUTED_TO }}`](#-repositories_contributed_to-)
-    - [`{{ STARS }}`](#-stars-)
   - [Languages](#languages)
-    - [`{{ LANGUAGE_TEMPLATE_START }}`](#-language_template_start-)
-    - [`{{ LANGUAGE_NAME }}`](#-language_name-)
-    - [`{{ LANGUAGE_PERCENT }}`](#-language_percent-)
-    - [`{{ LANGUAGE_COLOR }}`](#-language_color-)
-    - [`{{ LANGUAGE_TEMPLATE_END }}`](#-language_template_end-)
   - [Extra Options](#extra-options)
     - [`uri`](#uri)
     - [`max`](#max)
 - [Example Workflow](#example-workflow)
-<!-- prettier-ignore-end -->
 
 ## Action Inputs
 
-### `token` _Required_
-
-Personal access token with `read:user` scope and optional `repo` scope
-
-Generate token here: <https://github.com/settings/tokens>
-
-**Note:** `repo` scope is needed for taking private repositories into account
-
-### `template`
-
-Path to template file (default: `./TEMPLATE.md`)
-
-### `readme`
-
-Path to generated file (default: `./README.md`)
-
-### `includeForks`
-
-Include forked repositories when calculating the stats (default: `false`)
+| Input | Required | Default | Description |
+| --- | --- | --- | --- |
+| `token` | Yes | – | Personal access token with `read:user` scope and optional `repo` scope. Generate under [settings/tokens](https://github.com/settings/tokens). **Note:** `repo` scope is needed for taking private repositories into account. |
+| `template` | No | `./TEMPLATE.md` | Path to template |
+| `readme` | No | `./README.md` | Path to generated file |
+| `includeForks` | No | `false` | Include forked repositories when calculating the stats |
 
 ## Template Strings
 
+The following marker can be used in the template file to insert queried data.
+
 ### General
 
-#### `{{ ACCOUNT_AGE }}`
-
-Account age in years.
-
-#### `{{ ISSUES }}`
-
-Total number of opened issues across all repositories.
-
-#### `{{ PULL_REQUESTS }}`
-
-Total number of opened pull requests across all repositories.
-
-#### `{{ CODE_REVIEWS }}`
-
-Total number of pull requests reviewed across all repositories.
-
-#### `{{ COMMITS }}`
-
-Total number of commits across all repositories. Includes commits in private repositories only if you allowed github to show your private contributions on your profile (check out the [docs](https://docs.github.com/en/github/setting-up-and-managing-your-github-profile/publicizing-or-hiding-your-private-contributions-on-your-profile#changing-the-visibility-of-your-private-contributions) for more info).
-
-#### `{{ GISTS }}`
-
-Total number of public gists.
-
-#### `{{ REPOSITORIES }}`
-
-Total number of repositories. Includes private repositories if the given personal access token has `repo` scope (see more Action Inputs > token above).
-
-#### `{{ REPOSITORIES_CONTRIBUTED_TO }}`
-
-Total number of repositories you contributed to.
-
-#### `{{ STARS }}`
-
-Total number of stars on all your gists and repositories.
+| Template String | Description |
+| --- | --- |
+| `{{ ACCOUNT_AGE }}` | Account age in years. |
+| `{{ ISSUES }}` | Total number of opened issues across all repositories. |
+| `{{ PULL_REQUESTS }}` | Total number of opened pull requests across all repositories. |
+| `{{ CODE_REVIEWS }}` | Total number of pull requests reviewed across all repositories. |
+| `{{ COMMITS }}` | Total number of commits across all repositories. Includes commits in private repositories only if you allowed github to show your private contributions on your profile (check out the [docs](https://docs.github.com/en/github/setting-up-and-managing-your-github-profile/publicizing-or-hiding-your-private-contributions-on-your-profile#changing-the-visibility-of-your-private-contributions) for more info). |
+| `{{ GISTS }}` | Total number of public gists. |
+| `{{ REPOSITORIES }}` | Total number of repositories. Includes private repositories if the given personal access token has `repo` scope (see more Action Inputs > token above). |
+| `{{ REPOSITORIES_CONTRIBUTED_TO }}` | Total number of repositories you contributed to. |
+| `{{ STARS }}` | Total number of stars on all your gists and repositories. |
 
 ### Languages
 
 A region that will be repeated for every language you use in your repositories.
 
-#### `{{ LANGUAGE_TEMPLATE_START }}`
-
-Special template string that signifies the start of the region.
-
-#### `{{ LANGUAGE_NAME }}`
-
-Name of the language.
-
-#### `{{ LANGUAGE_PERCENT }}`
-
-How often the language is used in your repositories (percentage wise).
-
-#### `{{ LANGUAGE_COLOR }}`
-
-Color of the language (in CSS color format ex: `#0248AC`).
-
-#### `{{ LANGUAGE_TEMPLATE_END }}`
-
-Special template string that signifies the end of the region.
+| Template String | Description |
+| --- | --- |
+| `{{ LANGUAGE_TEMPLATE_START }}` | Special template string that signifies the start of the region. |
+| `{{ LANGUAGE_NAME }}` | Name of the language. |
+| `{{ LANGUAGE_PERCENT }}` | How often the language is used in your repositories (percentage wise). |
+| `{{ LANGUAGE_COLOR }}` | Color of the language (in CSS color format ex: `#0248AC`). |
+| `{{ LANGUAGE_TEMPLATE_END }}` | Special template string that signifies the end of the region. |
 
 ### Extra Options
 
@@ -140,7 +73,7 @@ Will encode the value as an URI component
 
 Can only be used with `LANGUAGE_TEMPLATE_START`
 
-Will run the inner template at most `max` nr of times
+Will run the inner template at most `max` number of times
 
 **Example:**
 
@@ -152,7 +85,6 @@ This text will be printed at most 5 times
 
 ## Example Workflow
 
-<!-- prettier-ignore-start -->
 ```yml
 on:
   schedule:
@@ -165,11 +97,11 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
     - name: Generate README.md
-      uses: teoxoy/profile-readme-stats@v3
+      uses: devmount/profile-readme-stats@v1
       with:
         token: ${{ secrets.USER_TOKEN }}
     - name: Update README.md
@@ -182,4 +114,3 @@ jobs:
         git push
         fi
 ```
-<!-- prettier-ignore-end -->
