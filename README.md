@@ -9,45 +9,42 @@ This action provides [template strings](#template-strings) that are replaced wit
 ## Table of contents
 
 <!-- prettier-ignore-start -->
-- [Profile Readme Stats](#profile-readme-stats)
-  - [Table of contents](#table-of-contents)
-  - [Action Inputs](#action-inputs)
-    - [`token`](#token)
-    - [`template`](#template)
-    - [`readme`](#readme)
-    - [`includeForks`](#includeforks)
-  - [Template Strings](#template-strings)
-    - [General](#general)
-      - [`{{ ACCOUNT_AGE }}`](#-account_age-)
-      - [`{{ ISSUES }}`](#-issues-)
-      - [`{{ PULL_REQUESTS }}`](#-pull_requests-)
-      - [`{{ CODE_REVIEWS }}`](#-code_reviews-)
-      - [`{{ COMMITS }}`](#-commits-)
-      - [`{{ GISTS }}`](#-gists-)
-      - [`{{ REPOSITORIES }}`](#-repositories-)
-      - [`{{ REPOSITORIES_CONTRIBUTED_TO }}`](#-repositories_contributed_to-)
-      - [`{{ STARS }}`](#-stars-)
-    - [Languages](#languages)
-      - [`{{ LANGUAGE_TEMPLATE_START }}`](#-language_template_start-)
-      - [`{{ LANGUAGE_NAME }}`](#-language_name-)
-      - [`{{ LANGUAGE_PERCENT }}`](#-language_percent-)
-      - [`{{ LANGUAGE_COLOR }}`](#-language_color-)
-      - [`{{ LANGUAGE_TEMPLATE_END }}`](#-language_template_end-)
-    - [Extra Options](#extra-options)
-      - [`uri`](#uri)
-      - [`max`](#max)
-  - [Example Workflow](#example-workflow)
+- [Table of contents](#table-of-contents)
+- [Action Inputs](#action-inputs)
+  - [`token` _Required_](#token-required)
+  - [`template`](#template)
+  - [`readme`](#readme)
+  - [`includeForks`](#includeforks)
+- [Template Strings](#template-strings)
+  - [General](#general)
+    - [`{{ ACCOUNT_AGE }}`](#-account_age-)
+    - [`{{ ISSUES }}`](#-issues-)
+    - [`{{ PULL_REQUESTS }}`](#-pull_requests-)
+    - [`{{ CODE_REVIEWS }}`](#-code_reviews-)
+    - [`{{ COMMITS }}`](#-commits-)
+    - [`{{ GISTS }}`](#-gists-)
+    - [`{{ REPOSITORIES }}`](#-repositories-)
+    - [`{{ REPOSITORIES_CONTRIBUTED_TO }}`](#-repositories_contributed_to-)
+    - [`{{ STARS }}`](#-stars-)
+  - [Languages](#languages)
+    - [`{{ LANGUAGE_TEMPLATE_START }}`](#-language_template_start-)
+    - [`{{ LANGUAGE_NAME }}`](#-language_name-)
+    - [`{{ LANGUAGE_PERCENT }}`](#-language_percent-)
+    - [`{{ LANGUAGE_COLOR }}`](#-language_color-)
+    - [`{{ LANGUAGE_TEMPLATE_END }}`](#-language_template_end-)
+  - [Extra Options](#extra-options)
+    - [`uri`](#uri)
+    - [`max`](#max)
+- [Example Workflow](#example-workflow)
 <!-- prettier-ignore-end -->
 
 ## Action Inputs
 
-### `token`
-
-_Required_
+### `token` _Required_
 
 Personal access token with `read:user` scope and optional `repo` scope
 
-Generate token here: https://github.com/settings/tokens
+Generate token here: <https://github.com/settings/tokens>
 
 **Note:** `repo` scope is needed for taking private repositories into account
 
@@ -85,7 +82,7 @@ Total number of pull requests reviewed across all repositories.
 
 #### `{{ COMMITS }}`
 
-Total number of commits across all repositories. Includes commits in private repositories only if you allowed github to show your private contributions on your profile (check out this [link](https://docs.github.com/en/github/setting-up-and-managing-your-github-profile/publicizing-or-hiding-your-private-contributions-on-your-profile#changing-the-visibility-of-your-private-contributions) for more info).
+Total number of commits across all repositories. Includes commits in private repositories only if you allowed github to show your private contributions on your profile (check out the [docs](https://docs.github.com/en/github/setting-up-and-managing-your-github-profile/publicizing-or-hiding-your-private-contributions-on-your-profile#changing-the-visibility-of-your-private-contributions) for more info).
 
 #### `{{ GISTS }}`
 
@@ -93,7 +90,7 @@ Total number of public gists.
 
 #### `{{ REPOSITORIES }}`
 
-Total number of repositories. Includes private repositories if the given personal access token has `repo` scope (see more [here](#token)).
+Total number of repositories. Includes private repositories if the given personal access token has `repo` scope (see more Action Inputs > token above).
 
 #### `{{ REPOSITORIES_CONTRIBUTED_TO }}`
 
@@ -135,7 +132,7 @@ Will encode the value as an URI component
 
 **Example:**
 
-```
+```twig
 {{ LANGUAGE_COLOR:uri }}
 ```
 
@@ -147,7 +144,7 @@ Will run the inner template at most `max` nr of times
 
 **Example:**
 
-```
+```twig
 {{ LANGUAGE_TEMPLATE_START:max=5 }}
 This text will be printed at most 5 times
 {{ LANGUAGE_TEMPLATE_END }}

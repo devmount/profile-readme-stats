@@ -38,14 +38,18 @@ async function run(): Promise<void> {
         pullRequests,
         contributionYears,
         gists,
-        repositories,
-        repositoryNodes,
         repositoriesContributedTo,
-        stars,
-    } = await getUserInfo(gql, includeForks)
+    } = await getUserInfo(gql)
 
-    const totalCommits = await getTotalCommits(gql, contributionYears)
-    const totalReviews = await getTotalReviews(gql, contributionYears)
+    const gistStars = await getStarredGists(gql)
+    const { repositoryNodes, repositories, repositoryStars } =
+        await getRepositories(gql, includeForks)
+    const stars = gistStars + repositoryStars
+
+    const { totalCommits, totalReviews } = await getContributionTotals(
+        gql,
+        contributionYears
+    )
 
     let o = await fs.readFile(template, { encoding: 'utf8' })
     o = replaceLanguageTemplate(o, repositoryNodes)
@@ -85,7 +89,22 @@ interface Repository extends Starrable {
     }
 }
 
-async function getUserInfo(gql: typeof graphql, includeForks = false) {
+/** number of contribution years bundled into a single contributionsCollection query */
+const CONTRIBUTION_YEARS_CHUNK_SIZE = 5
+
+/** page size for the top-level `gists` connection */
+const GISTS_PAGE_SIZE = 50
+/** page size for the top-level `repositories` connection */
+const REPOSITORIES_PAGE_SIZE = 25
+/** page size for the `languages` connection nested under each repository */
+const LANGUAGES_PAGE_SIZE = 20
+
+interface PageInfo {
+    hasNextPage: boolean
+    endCursor: string | null
+}
+
+async function getUserInfo(gql: typeof graphql) {
     const query = `{
         viewer {
             createdAt
@@ -98,30 +117,8 @@ async function getUserInfo(gql: typeof graphql, includeForks = false) {
             contributionsCollection {
                 contributionYears
             }
-            gists(first: 100) {
+            gists {
                 totalCount
-                nodes {
-                    stargazers {
-                        totalCount
-                    }
-                }
-            }
-            repositories(affiliations: OWNER, isFork: ${includeForks}, first: 100) {
-                totalCount
-                nodes {
-                    stargazers {
-                        totalCount
-                    }
-                    languages(first: 100) {
-                        edges {
-                            size
-                            node {
-                                color
-                                name
-                            }
-                        }
-                    }
-                }
             }
             repositoriesContributedTo {
                 totalCount
@@ -144,11 +141,6 @@ async function getUserInfo(gql: typeof graphql, includeForks = false) {
             }
             gists: {
                 totalCount: number
-                nodes: Gist[]
-            }
-            repositories: {
-                totalCount: number
-                nodes: Repository[]
             }
             repositoriesContributedTo: {
                 totalCount: number
@@ -163,7 +155,6 @@ async function getUserInfo(gql: typeof graphql, includeForks = false) {
             pullRequests,
             contributionsCollection: { contributionYears },
             gists,
-            repositories,
             repositoriesContributedTo,
         },
     } = await gql<Result>(query)
@@ -171,65 +162,159 @@ async function getUserInfo(gql: typeof graphql, includeForks = false) {
     const accountAgeMS = Date.now() - new Date(createdAt).getTime()
     const accountAge = Math.floor(accountAgeMS / (1000 * 60 * 60 * 24 * 365.25))
 
-    const stars = [...gists.nodes, ...repositories.nodes]
-        .map(gist => gist.stargazers.totalCount)
-        .reduce((total, current) => total + current, 0)
-
     return {
         accountAge,
         issues: issues.totalCount,
         pullRequests: pullRequests.totalCount,
         contributionYears,
         gists: gists.totalCount,
-        repositories: repositories.totalCount,
-        repositoryNodes: repositories.nodes,
         repositoriesContributedTo: repositoriesContributedTo.totalCount,
-        stars,
     }
 }
 
-async function getTotalCommits(
-    gql: typeof graphql,
-    contributionYears: number[]
-) {
-    let query = '{viewer{'
-    for (const year of contributionYears) {
-        query += `_${year}: contributionsCollection(from: "${getDateTime(
-            year
-        )}") { totalCommitContributions }`
-    }
-    query += '}}'
+async function getStarredGists(gql: typeof graphql) {
+    const query = `query($cursor: String) {
+        viewer {
+            gists(first: ${GISTS_PAGE_SIZE}, after: $cursor) {
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
+                nodes {
+                    stargazers {
+                        totalCount
+                    }
+                }
+            }
+        }
+    }`
 
     interface Result {
-        viewer: Record<string, { totalCommitContributions: number }>
+        viewer: {
+            gists: {
+                pageInfo: PageInfo
+                nodes: Gist[]
+            }
+        }
     }
 
-    const result = await gql<Result>(query)
-    return Object.keys(result.viewer)
-        .map(key => result.viewer[key].totalCommitContributions)
-        .reduce((total, current) => total + current, 0)
+    let stars = 0
+    let cursor: string | null = null
+    let hasNextPage = true
+    while (hasNextPage) {
+        const result: Result = await gql<Result>(query, { cursor })
+        const gists = result.viewer.gists
+        stars += gists.nodes.reduce(
+            (total: number, gist: Gist) => total + gist.stargazers.totalCount,
+            0
+        )
+        hasNextPage = gists.pageInfo.hasNextPage
+        cursor = gists.pageInfo.endCursor
+    }
+    return stars
 }
 
-async function getTotalReviews(
+async function getRepositories(gql: typeof graphql, includeForks = false) {
+    const query = `query($cursor: String) {
+        viewer {
+            repositories(affiliations: OWNER, isFork: ${includeForks}, first: ${REPOSITORIES_PAGE_SIZE}, after: $cursor) {
+                totalCount
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
+                nodes {
+                    stargazers {
+                        totalCount
+                    }
+                    languages(first: ${LANGUAGES_PAGE_SIZE}) {
+                        edges {
+                            size
+                            node {
+                                color
+                                name
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }`
+
+    interface Result {
+        viewer: {
+            repositories: {
+                totalCount: number
+                pageInfo: PageInfo
+                nodes: Repository[]
+            }
+        }
+    }
+
+    let repositories = 0
+    let repositoryStars = 0
+    const repositoryNodes: Repository[] = []
+    let cursor: string | null = null
+    let hasNextPage = true
+    while (hasNextPage) {
+        const result: Result = await gql<Result>(query, { cursor })
+        const page = result.viewer.repositories
+        repositories = page.totalCount
+        repositoryStars += page.nodes.reduce(
+            (total: number, repo: Repository) =>
+                total + repo.stargazers.totalCount,
+            0
+        )
+        repositoryNodes.push(...page.nodes)
+        hasNextPage = page.pageInfo.hasNextPage
+        cursor = page.pageInfo.endCursor
+    }
+
+    return { repositories, repositoryNodes, repositoryStars }
+}
+
+async function getContributionTotals(
     gql: typeof graphql,
     contributionYears: number[]
 ) {
-    let query = '{viewer{'
-    for (const year of contributionYears) {
-        query += `_${year}: contributionsCollection(from: "${getDateTime(
-            year
-        )}") { totalPullRequestReviewContributions }`
-    }
-    query += '}}'
-
     interface Result {
-        viewer: Record<string, { totalPullRequestReviewContributions: number }>
+        viewer: Record<
+            string,
+            {
+                totalCommitContributions: number
+                totalPullRequestReviewContributions: number
+            }
+        >
     }
 
-    const result = await gql<Result>(query)
-    return Object.keys(result.viewer)
-        .map(key => result.viewer[key].totalPullRequestReviewContributions)
-        .reduce((total, current) => total + current, 0)
+    let totalCommits = 0
+    let totalReviews = 0
+    for (
+        let i = 0;
+        i < contributionYears.length;
+        i += CONTRIBUTION_YEARS_CHUNK_SIZE
+    ) {
+        const years = contributionYears.slice(
+            i,
+            i + CONTRIBUTION_YEARS_CHUNK_SIZE
+        )
+        let query = '{viewer{'
+        for (const year of years) {
+            query += `_${year}: contributionsCollection(from: "${getDateTime(
+                year
+            )}") { totalCommitContributions totalPullRequestReviewContributions }`
+        }
+        query += '}}'
+
+        const result = await gql<Result>(query)
+        for (const key of Object.keys(result.viewer)) {
+            totalCommits += result.viewer[key].totalCommitContributions
+            totalReviews +=
+                result.viewer[key].totalPullRequestReviewContributions
+        }
+    }
+
+    return { totalCommits, totalReviews }
 }
 
 function getDateTime(year: number) {

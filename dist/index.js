@@ -7608,9 +7608,11 @@ function run() {
         const gql = graphql_1.graphql.defaults({
             headers: { authorization: `token ${token}` },
         });
-        const { accountAge, issues, pullRequests, contributionYears, gists, repositories, repositoryNodes, repositoriesContributedTo, stars, } = yield getUserInfo(gql, includeForks);
-        const totalCommits = yield getTotalCommits(gql, contributionYears);
-        const totalReviews = yield getTotalReviews(gql, contributionYears);
+        const { accountAge, issues, pullRequests, contributionYears, gists, repositoriesContributedTo, } = yield getUserInfo(gql);
+        const gistStars = yield getStarredGists(gql);
+        const { repositoryNodes, repositories, repositoryStars } = yield getRepositories(gql, includeForks);
+        const stars = gistStars + repositoryStars;
+        const { totalCommits, totalReviews } = yield getContributionTotals(gql, contributionYears);
         let o = yield fs_1.promises.readFile(template, { encoding: 'utf8' });
         o = replaceLanguageTemplate(o, repositoryNodes);
         o = replaceStringTemplate(o, TPL_STR.ACCOUNT_AGE, accountAge);
@@ -7625,7 +7627,15 @@ function run() {
         yield fs_1.promises.writeFile(readme, o);
     });
 }
-function getUserInfo(gql, includeForks = false) {
+/** number of contribution years bundled into a single contributionsCollection query */
+const CONTRIBUTION_YEARS_CHUNK_SIZE = 5;
+/** page size for the top-level `gists` connection */
+const GISTS_PAGE_SIZE = 50;
+/** page size for the top-level `repositories` connection */
+const REPOSITORIES_PAGE_SIZE = 25;
+/** page size for the `languages` connection nested under each repository */
+const LANGUAGES_PAGE_SIZE = 20;
+function getUserInfo(gql) {
     return __awaiter(this, void 0, void 0, function* () {
         const query = `{
         viewer {
@@ -7639,21 +7649,73 @@ function getUserInfo(gql, includeForks = false) {
             contributionsCollection {
                 contributionYears
             }
-            gists(first: 100) {
+            gists {
                 totalCount
+            }
+            repositoriesContributedTo {
+                totalCount
+            }
+        }
+        rateLimit { cost remaining resetAt }
+    }`;
+        const { viewer: { createdAt, issues, pullRequests, contributionsCollection: { contributionYears }, gists, repositoriesContributedTo, }, } = yield gql(query);
+        const accountAgeMS = Date.now() - new Date(createdAt).getTime();
+        const accountAge = Math.floor(accountAgeMS / (1000 * 60 * 60 * 24 * 365.25));
+        return {
+            accountAge,
+            issues: issues.totalCount,
+            pullRequests: pullRequests.totalCount,
+            contributionYears,
+            gists: gists.totalCount,
+            repositoriesContributedTo: repositoriesContributedTo.totalCount,
+        };
+    });
+}
+function getStarredGists(gql) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const query = `query($cursor: String) {
+        viewer {
+            gists(first: ${GISTS_PAGE_SIZE}, after: $cursor) {
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
                 nodes {
                     stargazers {
                         totalCount
                     }
                 }
             }
-            repositories(affiliations: OWNER, isFork: ${includeForks}, first: 100) {
+        }
+    }`;
+        let stars = 0;
+        let cursor = null;
+        let hasNextPage = true;
+        while (hasNextPage) {
+            const result = yield gql(query, { cursor });
+            const gists = result.viewer.gists;
+            stars += gists.nodes.reduce((total, gist) => total + gist.stargazers.totalCount, 0);
+            hasNextPage = gists.pageInfo.hasNextPage;
+            cursor = gists.pageInfo.endCursor;
+        }
+        return stars;
+    });
+}
+function getRepositories(gql, includeForks = false) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const query = `query($cursor: String) {
+        viewer {
+            repositories(affiliations: OWNER, isFork: ${includeForks}, first: ${REPOSITORIES_PAGE_SIZE}, after: $cursor) {
                 totalCount
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
                 nodes {
                     stargazers {
                         totalCount
                     }
-                    languages(first: 100) {
+                    languages(first: ${LANGUAGES_PAGE_SIZE}) {
                         edges {
                             size
                             node {
@@ -7664,55 +7726,44 @@ function getUserInfo(gql, includeForks = false) {
                     }
                 }
             }
-            repositoriesContributedTo {
-                totalCount
+        }
+    }`;
+        let repositories = 0;
+        let repositoryStars = 0;
+        const repositoryNodes = [];
+        let cursor = null;
+        let hasNextPage = true;
+        while (hasNextPage) {
+            const result = yield gql(query, { cursor });
+            const page = result.viewer.repositories;
+            repositories = page.totalCount;
+            repositoryStars += page.nodes.reduce((total, repo) => total + repo.stargazers.totalCount, 0);
+            repositoryNodes.push(...page.nodes);
+            hasNextPage = page.pageInfo.hasNextPage;
+            cursor = page.pageInfo.endCursor;
+        }
+        return { repositories, repositoryNodes, repositoryStars };
+    });
+}
+function getContributionTotals(gql, contributionYears) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let totalCommits = 0;
+        let totalReviews = 0;
+        for (let i = 0; i < contributionYears.length; i += CONTRIBUTION_YEARS_CHUNK_SIZE) {
+            const years = contributionYears.slice(i, i + CONTRIBUTION_YEARS_CHUNK_SIZE);
+            let query = '{viewer{';
+            for (const year of years) {
+                query += `_${year}: contributionsCollection(from: "${getDateTime(year)}") { totalCommitContributions totalPullRequestReviewContributions }`;
+            }
+            query += '}}';
+            const result = yield gql(query);
+            for (const key of Object.keys(result.viewer)) {
+                totalCommits += result.viewer[key].totalCommitContributions;
+                totalReviews +=
+                    result.viewer[key].totalPullRequestReviewContributions;
             }
         }
-        rateLimit { cost remaining resetAt }
-    }`;
-        const { viewer: { createdAt, issues, pullRequests, contributionsCollection: { contributionYears }, gists, repositories, repositoriesContributedTo, }, } = yield gql(query);
-        const accountAgeMS = Date.now() - new Date(createdAt).getTime();
-        const accountAge = Math.floor(accountAgeMS / (1000 * 60 * 60 * 24 * 365.25));
-        const stars = [...gists.nodes, ...repositories.nodes]
-            .map(gist => gist.stargazers.totalCount)
-            .reduce((total, current) => total + current, 0);
-        return {
-            accountAge,
-            issues: issues.totalCount,
-            pullRequests: pullRequests.totalCount,
-            contributionYears,
-            gists: gists.totalCount,
-            repositories: repositories.totalCount,
-            repositoryNodes: repositories.nodes,
-            repositoriesContributedTo: repositoriesContributedTo.totalCount,
-            stars,
-        };
-    });
-}
-function getTotalCommits(gql, contributionYears) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let query = '{viewer{';
-        for (const year of contributionYears) {
-            query += `_${year}: contributionsCollection(from: "${getDateTime(year)}") { totalCommitContributions }`;
-        }
-        query += '}}';
-        const result = yield gql(query);
-        return Object.keys(result.viewer)
-            .map(key => result.viewer[key].totalCommitContributions)
-            .reduce((total, current) => total + current, 0);
-    });
-}
-function getTotalReviews(gql, contributionYears) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let query = '{viewer{';
-        for (const year of contributionYears) {
-            query += `_${year}: contributionsCollection(from: "${getDateTime(year)}") { totalPullRequestReviewContributions }`;
-        }
-        query += '}}';
-        const result = yield gql(query);
-        return Object.keys(result.viewer)
-            .map(key => result.viewer[key].totalPullRequestReviewContributions)
-            .reduce((total, current) => total + current, 0);
+        return { totalCommits, totalReviews };
     });
 }
 function getDateTime(year) {
