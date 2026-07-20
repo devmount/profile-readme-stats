@@ -4,7 +4,7 @@ Showcase your github stats on your profile README.md.
 
 This action provides [template strings](#template-strings) that are replaced with their respective values when the action runs.
 
-**Example:** [TEMPLATE](./TEMPLATE.md?raw=true) → [README](./OUTPUT.md)
+**Example:** [TEMPLATE](/raw/refs/heads/main/TEMPLATE.md) → [README](./OUTPUT.md)
 
 ## Table of contents
 
